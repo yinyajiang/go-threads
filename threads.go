@@ -145,6 +145,11 @@ func (t *Threads) GetPost(id int64) ([]byte, error) {
 	return t.postRequest(variables, getPostDocID, headers)
 }
 
+// GetPostByURL fetches a post.
+func (t *Threads) GetPostByURL(u string) ([]byte, error) {
+	return t.GetPost(GetPostIDfromURL(u))
+}
+
 // GetPostLikers fetches all users who liked the post.
 func (t *Threads) GetPostLikers(id int64) ([]byte, error) {
 	variables := map[string]int64{"mediaID": id}
