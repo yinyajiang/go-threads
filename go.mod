@@ -1,4 +1,4 @@
-module github.com/antonprokopovich/go-threads
+module github.com/yinyajiang/go-threads
 
 go 1.20
 

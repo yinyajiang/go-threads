@@ -103,7 +103,7 @@ func (t *Threads) getToken() (string, error) {
 	return token, nil
 }
 
-func (t *Threads) postRequest(variables map[string]int, docID string, headers http.Header) ([]byte, error) {
+func (t *Threads) postRequest(variables map[string]int64, docID string, headers http.Header) ([]byte, error) {
 	variablesStr, err := json.Marshal(variables)
 	if err != nil {
 		return nil, err
@@ -136,8 +136,8 @@ func (t *Threads) postRequest(variables map[string]int, docID string, headers ht
 }
 
 // GetPost fetches a post.
-func (t *Threads) GetPost(id int) ([]byte, error) {
-	variables := map[string]int{"postID": id}
+func (t *Threads) GetPost(id int64) ([]byte, error) {
+	variables := map[string]int64{"postID": id}
 
 	headers := t.defaultHeaders.Clone()
 	headers.Add("X-FB-Friendly-Name", "BarcelonaPostPageQuery")
@@ -146,15 +146,15 @@ func (t *Threads) GetPost(id int) ([]byte, error) {
 }
 
 // GetPostLikers fetches all users who liked the post.
-func (t *Threads) GetPostLikers(id int) ([]byte, error) {
-	variables := map[string]int{"mediaID": id}
+func (t *Threads) GetPostLikers(id int64) ([]byte, error) {
+	variables := map[string]int64{"mediaID": id}
 
 	return t.postRequest(variables, getPostLikersDocID, t.defaultHeaders)
 }
 
 // GetUser fetches a user.
-func (t *Threads) GetUser(id int) ([]byte, error) {
-	variables := map[string]int{"userID": id}
+func (t *Threads) GetUser(id int64) ([]byte, error) {
+	variables := map[string]int64{"userID": id}
 
 	headers := t.defaultHeaders.Clone()
 	headers.Add("X-FB-Friendly-Name", "BarcelonaProfileRootQuery")
@@ -163,8 +163,8 @@ func (t *Threads) GetUser(id int) ([]byte, error) {
 }
 
 // GetUserThreads fetches a user's Threads.
-func (t *Threads) GetUserThreads(id int) ([]byte, error) {
-	variables := map[string]int{"userID": id}
+func (t *Threads) GetUserThreads(id int64) ([]byte, error) {
+	variables := map[string]int64{"userID": id}
 
 	headers := t.defaultHeaders.Clone()
 	headers.Add("X-FB-Friendly-Name", "BarcelonaProfileThreadsTabQuery")
@@ -173,8 +173,8 @@ func (t *Threads) GetUserThreads(id int) ([]byte, error) {
 }
 
 // GetUserReplies fetches a user's replies.
-func (t *Threads) GetUserReplies(id int) ([]byte, error) {
-	variables := map[string]int{"userID": id}
+func (t *Threads) GetUserReplies(id int64) ([]byte, error) {
+	variables := map[string]int64{"userID": id}
 
 	headers := t.defaultHeaders.Clone()
 	headers.Add("X-FB-Friendly-Name", "BarcelonaProfileRepliesTabQuery")
@@ -183,7 +183,7 @@ func (t *Threads) GetUserReplies(id int) ([]byte, error) {
 }
 
 // GetUserID fetches user's ID by username.
-func (t *Threads) GetUserID(username string) (int, error) {
+func (t *Threads) GetUserID(username string) (int64, error) {
 	baseURL := fmt.Sprintf("https://www.threads.net/@%s", username)
 
 	req, err := http.NewRequest(http.MethodGet, baseURL, nil)
@@ -219,7 +219,7 @@ func (t *Threads) GetUserID(username string) (int, error) {
 	userIdRegex := regexp.MustCompile(`"user_id":"(\d+)"`)
 	userIdStr := userIdRegex.FindStringSubmatch(string(body))[1]
 
-	userId, err := strconv.Atoi(userIdStr)
+	userId, err := strconv.ParseInt(userIdStr, 0, 63)
 	if err != nil {
 		return -1, err
 	}
