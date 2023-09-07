@@ -23,20 +23,33 @@ const (
 )
 
 const (
-	maxRedirectsNum = 20
-	apiURL          = "https://www.threads.net/api/graphql"
-	tokenURL        = "https://www.threads.net/@instagram"
+	apiURL   = "https://www.threads.net/api/graphql"
+	tokenURL = "https://www.threads.net/@instagram"
 )
 
 // Threads implements Threads.net API wrapper.
 type Threads struct {
 	token          string
 	defaultHeaders http.Header
+	proxy          *url.URL
+}
+
+type ThreadsOptFun func(*Threads)
+
+func WithProxy(proxy string) ThreadsOptFun {
+	return func(t *Threads) {
+		if proxy, e := url.Parse(proxy); e == nil {
+			t.proxy = proxy
+		}
+	}
 }
 
 // NewThreads constructs a Threads instance.
-func NewThreads() (t *Threads, err error) {
+func NewThreads(opt ...ThreadsOptFun) (t *Threads, err error) {
 	t = new(Threads)
+	for _, o := range opt {
+		o(t)
+	}
 
 	t.token, err = t.getToken()
 	if err != nil {
@@ -72,19 +85,7 @@ func (t *Threads) getToken() (string, error) {
 		"User-Agent": {"golang"},
 	}
 
-	client := &http.Client{
-		CheckRedirect: func() func(req *http.Request, via []*http.Request) error {
-			redirects := 0
-			return func(req *http.Request, via []*http.Request) error {
-				if redirects > maxRedirectsNum {
-					return errors.New(fmt.Sprintf("stopped after %d redirects", maxRedirectsNum))
-				}
-				redirects++
-
-				return nil
-			}
-		}(),
-	}
+	client := t.httpClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return "", errors.Wrap(err, "http Get request failed")
@@ -121,7 +122,7 @@ func (t *Threads) postRequest(variables map[string]int64, docID string, headers 
 
 	req.Header = headers
 
-	client := &http.Client{}
+	client := t.httpClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -210,7 +211,7 @@ func (t *Threads) GetUserID(username string) (int64, error) {
 	req.Header.Del("X-FB-LSD")
 	req.Header.Del("X-IG-App-ID")
 
-	client := &http.Client{}
+	client := t.httpClient()
 	resp, err := client.Do(req)
 	if err != nil {
 		return -1, err
@@ -230,4 +231,17 @@ func (t *Threads) GetUserID(username string) (int64, error) {
 	}
 
 	return userId, nil
+}
+
+func (t *Threads) httpClient() *http.Client {
+	if t.proxy == nil {
+		return &http.Client{}
+	}
+
+	transport := &http.Transport{
+		Proxy: http.ProxyURL(t.proxy),
+	}
+	return &http.Client{
+		Transport: transport,
+	}
 }
