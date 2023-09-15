@@ -38,6 +38,9 @@ type ThreadsOptFun func(*Threads)
 
 func WithProxy(proxy string) ThreadsOptFun {
 	return func(t *Threads) {
+		if proxy == "" {
+			return
+		}
 		if proxy, e := url.Parse(proxy); e == nil {
 			t.proxy = proxy
 		}
