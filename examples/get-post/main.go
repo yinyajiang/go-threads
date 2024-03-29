@@ -13,11 +13,10 @@ func main() {
 	t, err := threads.NewThreads()
 	if err != nil {
 		fmt.Println("Error:", err)
-
 		return
 	}
 
-	post, err := t.GetPost(3141002295235099165)
+	post, err := t.GetPost(3333821180161137169)
 	if err != nil {
 		fmt.Println("Error:", err)
 		return

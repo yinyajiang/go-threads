@@ -16,9 +16,9 @@ import (
 
 const (
 	getUserDocID        = "23996318473300828"
-	getUserThreadsDocID = "6232751443445612"
+	getUserThreadsDocID = "7119605668149033"
 	getUserRepliesDocID = "6307072669391286"
-	getPostDocID        = "5587632691339264"
+	getPostDocID        = "6992290264212558"
 	getPostLikersDocID  = "9360915773983802"
 )
 
@@ -69,10 +69,10 @@ func NewThreads(opt ...ThreadsOptFun) (t *Threads, err error) {
 		"Origin":          {"https://www.threads.net"},
 		"Pragma":          {"no-cache"},
 		"Sec-Fetch-Site":  {"same-origin"},
-		"User-Agent":      {"golang"},
-		"X-ASBD-ID":       {"129477"},
-		"X-IG-App-ID":     {"238260118697367"},
-		"X-FB-LSD":        {t.token},
+		"User-Agent":      {"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"},
+		"X-Asbd-Id":       {"129477"},
+		"XX-Ig-App-Id":    {"238260118697367"},
+		"X-Fb-Lsd":        {t.token},
 	}
 
 	return t, nil
@@ -101,13 +101,33 @@ func (t *Threads) getToken() (string, error) {
 
 	bodyStr := string(body)
 
-	tokenKeyPos := strings.Index(bodyStr, "\"token\"")
-	token := bodyStr[tokenKeyPos+9 : tokenKeyPos+31]
-
-	return token, nil
+	token := findJsonStringValue(bodyStr, "token")
+	if token != "" {
+		return token, nil
+	}
+	return "", errors.New("token not found")
 }
 
-func (t *Threads) postRequest(variables map[string]int64, docID string, headers http.Header) ([]byte, error) {
+func findJsonStringValue(bodyStr string, key string) string {
+	KeyPos := strings.Index(bodyStr, `"`+key+`"`)
+	if KeyPos == -1 {
+		return ""
+	}
+	valueStr := strings.ReplaceAll(bodyStr[KeyPos:], " ", "")
+	valueStr = strings.ReplaceAll(valueStr, "\n", "")
+	valueStr = strings.ReplaceAll(valueStr, "\r", "")
+	valueStr = strings.ReplaceAll(valueStr, "\t", "")
+	re := regexp.MustCompile(`"` + key + `"` + `:"([^"]+)"`)
+	// 查找匹配项
+	match := re.FindStringSubmatch(valueStr)
+	if len(match) > 1 {
+		value := match[1]
+		return value
+	}
+	return ""
+}
+
+func (t *Threads) postRequest(variables map[string]any, docID string, headers http.Header, attrDatas ...map[string]string) ([]byte, error) {
 	variablesStr, err := json.Marshal(variables)
 	if err != nil {
 		return nil, err
@@ -117,7 +137,11 @@ func (t *Threads) postRequest(variables map[string]int64, docID string, headers 
 	data.Set("lsd", t.token)
 	data.Set("variables", string(variablesStr))
 	data.Set("doc_id", docID)
-
+	for _, attrData := range attrDatas {
+		for k, v := range attrData {
+			data.Set(k, v)
+		}
+	}
 	req, err := http.NewRequest(http.MethodPost, apiURL, strings.NewReader(data.Encode()))
 	if err != nil {
 		return nil, err
@@ -141,11 +165,19 @@ func (t *Threads) postRequest(variables map[string]int64, docID string, headers 
 
 // GetPost fetches a post.
 func (t *Threads) GetPost(id int64) ([]byte, error) {
-	variables := map[string]int64{"postID": id}
+	variables := map[string]any{
+		"postID": fmt.Sprintf("%d", id),
+		"__relay_internal__pv__BarcelonaIsLoggedInrelayprovider":                               false,
+		"__relay_internal__pv__BarcelonaIsThreadContextHeaderEnabledrelayprovider":             false,
+		"__relay_internal__pv__BarcelonaIsThreadContextHeaderFollowButtonEnabledrelayprovider": false,
+		"__relay_internal__pv__BarcelonaUseCometVideoPlaybackEnginerelayprovider":              false,
+		"__relay_internal__pv__BarcelonaOptionalCookiesEnabledrelayprovider":                   false,
+		"__relay_internal__pv__BarcelonaIsViewCountEnabledrelayprovider":                       false,
+		"__relay_internal__pv__BarcelonaShouldShowFediverseM075Featuresrelayprovider":          false,
+	}
 
 	headers := t.defaultHeaders.Clone()
-	headers.Add("X-FB-Friendly-Name", "BarcelonaPostPageQuery")
-
+	headers.Add("X-Fb-Friendly-Name", "BarcelonaPostPageQuery")
 	return t.postRequest(variables, getPostDocID, headers)
 }
 
@@ -156,37 +188,37 @@ func (t *Threads) GetPostByURL(u string) ([]byte, error) {
 
 // GetPostLikers fetches all users who liked the post.
 func (t *Threads) GetPostLikers(id int64) ([]byte, error) {
-	variables := map[string]int64{"mediaID": id}
+	variables := map[string]any{"mediaID": id}
 
 	return t.postRequest(variables, getPostLikersDocID, t.defaultHeaders)
 }
 
 // GetUser fetches a user.
 func (t *Threads) GetUser(id int64) ([]byte, error) {
-	variables := map[string]int64{"userID": id}
+	variables := map[string]any{"userID": id}
 
 	headers := t.defaultHeaders.Clone()
-	headers.Add("X-FB-Friendly-Name", "BarcelonaProfileRootQuery")
+	headers.Add("X-Fb-Friendly-Name", "BarcelonaProfileRootQuery")
 
 	return t.postRequest(variables, getUserDocID, headers)
 }
 
 // GetUserThreads fetches a user's Threads.
 func (t *Threads) GetUserThreads(id int64) ([]byte, error) {
-	variables := map[string]int64{"userID": id}
+	variables := map[string]any{"userID": id}
 
 	headers := t.defaultHeaders.Clone()
-	headers.Add("X-FB-Friendly-Name", "BarcelonaProfileThreadsTabQuery")
+	headers.Add("X-Fb-Friendly-Name", "BarcelonaProfileThreadsTabQuery")
 
 	return t.postRequest(variables, getUserThreadsDocID, headers)
 }
 
 // GetUserReplies fetches a user's replies.
 func (t *Threads) GetUserReplies(id int64) ([]byte, error) {
-	variables := map[string]int64{"userID": id}
+	variables := map[string]any{"userID": id}
 
 	headers := t.defaultHeaders.Clone()
-	headers.Add("X-FB-Friendly-Name", "BarcelonaProfileRepliesTabQuery")
+	headers.Add("X-Fb-Friendly-Name", "BarcelonaProfileRepliesTabQuery")
 
 	return t.postRequest(variables, getUserRepliesDocID, headers)
 }
@@ -210,9 +242,9 @@ func (t *Threads) GetUserID(username string) (int64, error) {
 	req.Header.Add("Sec-Fetch-User", "?1")
 	req.Header.Add("Upgrade-Insecure-Requests", "1")
 
-	req.Header.Del("X-ASBD-ID")
-	req.Header.Del("X-FB-LSD")
-	req.Header.Del("X-IG-App-ID")
+	req.Header.Del("X-Asbd-Id")
+	req.Header.Del("X-Fb-Lsd")
+	req.Header.Del("XX-Ig-App-Id")
 
 	client := t.httpClient()
 	resp, err := client.Do(req)
